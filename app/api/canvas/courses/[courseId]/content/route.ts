@@ -7,7 +7,7 @@
 import type { NextRequest } from 'next/server';
 
 import { describeCanvasError } from '@/lib/canvas/client';
-import { getCanvasConfig } from '@/lib/canvas/config';
+import { resolveCanvasConfig } from '@/lib/canvas/config';
 import { buildCourseContent, CANVAS_SECTIONS, type CanvasSection } from '@/lib/canvas/content';
 import { apiError } from '@/lib/server/api-response';
 import { ownerJson } from '@/lib/server/agent-runtime/route-response';
@@ -25,7 +25,7 @@ export async function GET(
       for (const [key, value] of responseHeaders) res.headers.append(key, value);
       return res;
     };
-    const config = getCanvasConfig();
+    const config = resolveCanvasConfig(req);
     if (!config) return new Response('Not found', { status: 404, headers: responseHeaders });
     if (!/^\d{1,20}$/.test(courseId)) {
       return fail(apiError('INVALID_REQUEST', 400, 'courseId must be numeric'));

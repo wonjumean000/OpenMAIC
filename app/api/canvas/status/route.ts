@@ -5,8 +5,11 @@
 import type { NextRequest } from 'next/server';
 
 import { canvasGet, describeCanvasError } from '@/lib/canvas/client';
-import { getCanvasConfig } from '@/lib/canvas/config';
-import { apiError } from '@/lib/server/api-response';
+import {
+  CANVAS_PRESET_HOSTS,
+  DEFAULT_CANVAS_BASE_URL,
+  resolveCanvasConfigWithSource,
+} from '@/lib/canvas/config';
 import { ownerJson } from '@/lib/server/agent-runtime/route-response';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
 
@@ -14,22 +17,34 @@ export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   return withRequestOwner(req, async (_owner, responseHeaders) => {
-    const config = getCanvasConfig();
-    if (!config) {
-      return ownerJson({ configured: false }, 200, responseHeaders);
+    const resolved = resolveCanvasConfigWithSource(req);
+    if (!resolved) {
+      return ownerJson(
+        {
+          configured: false,
+          defaultBaseUrl: DEFAULT_CANVAS_BASE_URL,
+          presetHosts: CANVAS_PRESET_HOSTS,
+        },
+        200,
+        responseHeaders,
+      );
     }
+    const { config, source } = resolved;
+    const host = new URL(config.baseUrl).host;
     try {
       const me = await canvasGet<{ id: string; name?: string }>(config, '/users/self');
       return ownerJson(
-        { configured: true, connected: true, host: new URL(config.baseUrl).host, userName: me.name ?? null },
+        { configured: true, connected: true, host, source, userName: me.name ?? null },
         200,
         responseHeaders,
       );
     } catch (error) {
-      const { status, message } = describeCanvasError(error);
-      const res = apiError('UPSTREAM_ERROR', status, message);
-      for (const [key, value] of responseHeaders) res.headers.append(key, value);
-      return res;
+      const { message } = describeCanvasError(error);
+      return ownerJson(
+        { configured: true, connected: false, host, source, error: message },
+        200,
+        responseHeaders,
+      );
     }
   });
 }
