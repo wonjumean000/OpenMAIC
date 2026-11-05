@@ -92,7 +92,7 @@ export async function buildCourseContent(
   sections: CanvasSection[],
 ): Promise<CanvasCourseContent> {
   const wanted = new Set(sections);
-  const course = await canvasGet<CanvasCourse>(`${''}` && config, `/courses/${courseId}`, {
+  const course = await canvasGet<CanvasCourse>(config, `/courses/${courseId}`, {
     'include[]': wanted.has('syllabus') ? ['syllabus_body'] : undefined,
   });
   const parts: string[] = [`# ${course.name}${course.course_code ? ` (${course.course_code})` : ''}`];
